@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, time
 from io import BytesIO
 from PIL import Image
 import base64
 from geopy.geocoders import Nominatim
+import tempfile
+from fpdf import FPDF
 
 st.set_page_config(page_title="Dive Log App", layout="wide")
 st.title("🌊 Dive Log App")
@@ -14,15 +16,15 @@ st.write("Track your scuba diving adventures with images, stats, and dive comput
 # --- Initialize session state ---
 if "divelog" not in st.session_state:
     st.session_state.divelog = pd.DataFrame(
-        columns=["Date", "Diver", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
-                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
+        columns=["Date", "Diver", "Location", "Latitude", "Longitude", "Start Time", "End Time",
+                 "Depth (m)", "Duration (min)", "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
                  "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
     )
 
 geolocator = Nominatim(user_agent="divelog-app")
 
 # --- Dive Log Entry Form ---
-st.sidebar.header("📝 Log a New Dive")
+st.sidebar.header("📜 Log a New Dive")
 with st.sidebar.form("dive_form"):
     diver_name = st.text_input("Diver Name", placeholder="e.g. Hafiz")
     date = st.date_input("Dive Date", value=datetime.today())
@@ -49,6 +51,9 @@ with st.sidebar.form("dive_form"):
 
     if location:
         st.info(location_msg)
+
+    start_time = st.time_input("Dive Start Time", value=time(9, 0))
+    end_time = st.time_input("Dive End Time", value=time(9, 45))
 
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
@@ -80,6 +85,8 @@ with st.sidebar.form("dive_form"):
             "Location": location,
             "Latitude": lat,
             "Longitude": lon,
+            "Start Time": start_time.strftime("%H:%M"),
+            "End Time": end_time.strftime("%H:%M"),
             "Depth (m)": depth,
             "Duration (min)": duration,
             "Activity": activity,
@@ -162,9 +169,28 @@ if uploaded_csv:
 
 # --- Download Dive Log ---
 st.subheader("📂 Export Dive Log")
+
+# CSV Export
 st.download_button(
-    "Download as CSV",
+    "Download Dive Log as CSV",
     data=df.drop(columns=["Image"]).to_csv(index=False),
     file_name="divelog.csv",
     mime="text/csv"
 )
+
+# PDF Export
+if st.button("Export as PDF"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+    pdf.cell(200, 10, txt="Dive Log Summary", ln=True, align="C")
+
+    for i, row in df.iterrows():
+        for key, value in row.drop("Image").items():
+            pdf.cell(200, 5, txt=f"{key}: {value}", ln=True)
+        pdf.cell(200, 5, txt="---", ln=True)
+
+    tmp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf.output(tmp_pdf.name)
+    with open(tmp_pdf.name, "rb") as f:
+        st.download_button("Download Dive Log as PDF", f.read(), file_name="divelog.pdf", mime="application/pdf")
