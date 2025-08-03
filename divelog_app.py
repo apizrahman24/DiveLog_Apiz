@@ -5,7 +5,7 @@ from datetime import datetime
 from io import BytesIO
 from PIL import Image
 import base64
-import os
+from geopy.geocoders import Nominatim
 
 st.set_page_config(page_title="Dive Log App", layout="wide")
 st.title("🌊 Dive Log App")
@@ -15,8 +15,10 @@ st.write("Track your scuba diving adventures with images, stats, and dive comput
 if "divelog" not in st.session_state:
     st.session_state.divelog = pd.DataFrame(
         columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
-                 "Buddy", "Notes", "Equipment", "Tank Type", "Image"]
+                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type", "Image"]
     )
+
+geolocator = Nominatim(user_agent="divelog-app")
 
 # --- Dive Log Entry Form ---
 st.sidebar.header("📝 Log a New Dive")
@@ -25,8 +27,22 @@ with st.sidebar.form("dive_form"):
     location = st.text_input("Location")
     lat = st.number_input("Latitude", format="%.6f")
     lon = st.number_input("Longitude", format="%.6f")
+    geocode_btn = st.form_submit_button("📍 Auto-fill Coordinates from Location")
+    if geocode_btn and location:
+        try:
+            geo = geolocator.geocode(location)
+            if geo:
+                lat = geo.latitude
+                lon = geo.longitude
+                st.success("Coordinates filled from location name.")
+            else:
+                st.warning("Location not found.")
+        except:
+            st.error("Geocoding failed. Please check your internet connection or try again.")
+
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
+    activity = st.selectbox("Dive Activity", ["Fun Dive", "Training", "Check Dive", "Deep Dive", "Night Dive", "Other"])
     buddy = st.text_input("Dive Buddy")
     notes = st.text_area("Notes")
     equipment = st.text_input("Equipment Used")
@@ -47,6 +63,7 @@ with st.sidebar.form("dive_form"):
             "Longitude": lon,
             "Depth (m)": depth,
             "Duration (min)": duration,
+            "Activity": activity,
             "Buddy": buddy,
             "Notes": notes,
             "Equipment": equipment,
@@ -119,4 +136,4 @@ st.download_button(
     data=df.drop(columns=["Image"]).to_csv(index=False),
     file_name="divelog.csv",
     mime="text/csv"
-) 
+)
