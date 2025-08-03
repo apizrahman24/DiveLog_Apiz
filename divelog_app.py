@@ -46,11 +46,8 @@ with st.sidebar.form("dive_form"):
     lat = st.number_input("Latitude", value=lat, format="%.6f")
     lon = st.number_input("Longitude", value=lon, format="%.6f")
 
-    # Show result AFTER lat/lon
     if location:
-        st.sidebar.info(location_msg)
-        if not location_valid:
-            st.stop()
+        st.info(location_msg)
 
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
@@ -59,15 +56,18 @@ with st.sidebar.form("dive_form"):
     notes = st.text_area("Notes")
     equipment = st.text_input("Equipment Used")
     tank = st.selectbox("Tank Type", ["Air", "Nitrox", "Trimix", "Other"])
-
     air_before = st.number_input("Tank Pressure Before Dive (bar)", min_value=0, value=200)
     air_after = st.number_input("Tank Pressure After Dive (bar)", min_value=0, value=50)
     air_used = max(0, air_before - air_after)
-
     image_file = st.file_uploader("Upload Dive Site Image", type=["jpg", "jpeg", "png"])
+
     submit = st.form_submit_button("Add Dive")
 
     if submit:
+        if not location_valid:
+            st.warning("❗ Please enter a valid location before submitting.")
+            st.stop()
+
         img_data = ""
         if image_file:
             img_bytes = image_file.read()
@@ -90,11 +90,12 @@ with st.sidebar.form("dive_form"):
             "Air Used (bar)": air_used,
             "Image": img_data
         }
+
         st.session_state.divelog = pd.concat(
             [st.session_state.divelog, pd.DataFrame([new_entry])],
             ignore_index=True
         )
-        st.sidebar.success("Dive logged!")
+        st.success("Dive logged!")
 
 # --- Show Dive Logs ---
 df = st.session_state.divelog
@@ -103,7 +104,6 @@ if df.empty:
     st.stop()
 
 st.subheader("📖 Logged Dives")
-
 del_col, log_col = st.columns([1, 5])
 with del_col:
     delete_index = st.number_input("Index to Delete", min_value=0, max_value=len(df)-1 if len(df) > 0 else 0, step=1)
