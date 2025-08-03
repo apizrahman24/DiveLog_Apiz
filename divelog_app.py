@@ -14,7 +14,7 @@ st.write("Track your scuba diving adventures with images, stats, and dive comput
 # --- Initialize session state ---
 if "divelog" not in st.session_state:
     st.session_state.divelog = pd.DataFrame(
-        columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
+        columns=["Date", "Diver", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
                  "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
                  "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
     )
@@ -24,6 +24,7 @@ geolocator = Nominatim(user_agent="divelog-app")
 # --- Dive Log Entry Form ---
 st.sidebar.header("📝 Log a New Dive")
 with st.sidebar.form("dive_form"):
+    diver_name = st.text_input("Diver Name", placeholder="e.g. Hafiz")
     date = st.date_input("Dive Date", value=datetime.today())
     location = st.text_input("Location")
 
@@ -75,6 +76,7 @@ with st.sidebar.form("dive_form"):
 
         new_entry = {
             "Date": date,
+            "Diver": diver_name,
             "Location": location,
             "Latitude": lat,
             "Longitude": lon,
