@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from io import StringIO
+from io import BytesIO
 from PIL import Image
 import base64
 import os
@@ -11,27 +11,9 @@ st.set_page_config(page_title="Dive Log App", layout="wide")
 st.title("🌊 Dive Log App")
 st.write("Track your scuba diving adventures with images, stats, and dive computer data.")
 
-# --- User Login ---
-users = {"diver1": "1234", "diver2": "abcd"}
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    st.subheader("🔐 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if username in users and users[username] == password:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.success(f"Welcome, {username}!")
-        else:
-            st.error("Invalid credentials")
-    st.stop()
-
-# --- Initialize user-specific session state ---
-if f"divelog_{st.session_state.username}" not in st.session_state:
-    st.session_state[f"divelog_{st.session_state.username}"] = pd.DataFrame(
+# --- Initialize session state ---
+if "divelog" not in st.session_state:
+    st.session_state.divelog = pd.DataFrame(
         columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
                  "Buddy", "Notes", "Equipment", "Tank Type", "Image"]
     )
@@ -71,13 +53,11 @@ with st.sidebar.form("dive_form"):
             "Tank Type": tank,
             "Image": img_data
         }
-        st.session_state[f"divelog_{st.session_state.username}"] = st.session_state[
-            f"divelog_{st.session_state.username}"
-        ].append(new_entry, ignore_index=True)
+        st.session_state.divelog = st.session_state.divelog.append(new_entry, ignore_index=True)
         st.sidebar.success("Dive logged!")
 
 # --- Show Dive Logs ---
-df = st.session_state[f"divelog_{st.session_state.username}"]
+df = st.session_state.divelog
 if df.empty:
     st.info("No dives logged yet.")
     st.stop()
@@ -134,6 +114,6 @@ st.subheader("📂 Export Dive Log")
 st.download_button(
     "Download as CSV",
     data=df.drop(columns=["Image"]).to_csv(index=False),
-    file_name=f"{st.session_state.username}_divelog.csv",
+    file_name="divelog.csv",
     mime="text/csv"
-)
+) 
