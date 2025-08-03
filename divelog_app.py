@@ -43,13 +43,14 @@ with st.sidebar.form("dive_form"):
         except:
             location_msg = "❌ Failed to connect to geocoding service."
 
+    lat = st.number_input("Latitude", value=lat, format="%.6f")
+    lon = st.number_input("Longitude", value=lon, format="%.6f")
+
+    # Show result AFTER lat/lon
     if location:
         st.sidebar.info(location_msg)
         if not location_valid:
             st.stop()
-
-    lat = st.number_input("Latitude", value=lat, format="%.6f")
-    lon = st.number_input("Longitude", value=lon, format="%.6f")
 
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
