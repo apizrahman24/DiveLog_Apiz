@@ -53,7 +53,10 @@ with st.sidebar.form("dive_form"):
             "Tank Type": tank,
             "Image": img_data
         }
-        st.session_state.divelog = st.session_state.divelog.append(new_entry, ignore_index=True)
+        st.session_state.divelog = pd.concat(
+            [st.session_state.divelog, pd.DataFrame([new_entry])],
+            ignore_index=True
+        )
         st.sidebar.success("Dive logged!")
 
 # --- Show Dive Logs ---
