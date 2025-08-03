@@ -6,18 +6,41 @@ from io import BytesIO
 from PIL import Image
 import base64
 from geopy.geocoders import Nominatim
+import gspread
+from google.oauth2.service_account import Credentials
 
+# --- Google Sheets Setup ---
+SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=SCOPE
+)
+gc = gspread.authorize(creds)
+SPREADSHEET_NAME = "DiveLogData"
+
+# Create sheet if not exist
+try:
+    sh = gc.open(SPREADSHEET_NAME)
+except gspread.SpreadsheetNotFound:
+    sh = gc.create(SPREADSHEET_NAME)
+    sh.share(st.secrets["gcp_service_account"]["client_email"], perm_type="user", role="writer")
+worksheet = sh.sheet1
+
+# --- Streamlit Setup ---
 st.set_page_config(page_title="Dive Log App", layout="wide")
 st.title("🌊 Dive Log App")
 st.write("Track your scuba diving adventures with images, stats, and dive computer data.")
 
 # --- Initialize session state ---
 if "divelog" not in st.session_state:
-    st.session_state.divelog = pd.DataFrame(
-        columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
-                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
-                 "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
-    )
+    try:
+        data = worksheet.get_all_records()
+        st.session_state.divelog = pd.DataFrame(data)
+    except:
+        st.session_state.divelog = pd.DataFrame(
+            columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
+                     "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
+                     "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
+        )
 
 geolocator = Nominatim(user_agent="divelog-app")
 
@@ -45,9 +68,10 @@ with st.sidebar.form("dive_form"):
 
     lat = st.number_input("Latitude", value=lat, format="%.6f")
     lon = st.number_input("Longitude", value=lon, format="%.6f")
-
     if location:
-        st.info(location_msg)
+        st.sidebar.info(location_msg)
+        if not location_valid:
+            st.stop()
 
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
@@ -56,25 +80,22 @@ with st.sidebar.form("dive_form"):
     notes = st.text_area("Notes")
     equipment = st.text_input("Equipment Used")
     tank = st.selectbox("Tank Type", ["Air", "Nitrox", "Trimix", "Other"])
+
     air_before = st.number_input("Tank Pressure Before Dive (bar)", min_value=0, value=200)
     air_after = st.number_input("Tank Pressure After Dive (bar)", min_value=0, value=50)
     air_used = max(0, air_before - air_after)
-    image_file = st.file_uploader("Upload Dive Site Image", type=["jpg", "jpeg", "png"])
 
+    image_file = st.file_uploader("Upload Dive Site Image", type=["jpg", "jpeg", "png"])
     submit = st.form_submit_button("Add Dive")
 
     if submit:
-        if not location_valid:
-            st.warning("❗ Please enter a valid location before submitting.")
-            st.stop()
-
         img_data = ""
         if image_file:
             img_bytes = image_file.read()
             img_data = base64.b64encode(img_bytes).decode("utf-8")
 
         new_entry = {
-            "Date": date,
+            "Date": str(date),
             "Location": location,
             "Latitude": lat,
             "Longitude": lon,
@@ -90,12 +111,12 @@ with st.sidebar.form("dive_form"):
             "Air Used (bar)": air_used,
             "Image": img_data
         }
-
         st.session_state.divelog = pd.concat(
             [st.session_state.divelog, pd.DataFrame([new_entry])],
             ignore_index=True
         )
-        st.success("Dive logged!")
+        worksheet.append_row(list(new_entry.values()))
+        st.sidebar.success("Dive logged!")
 
 # --- Show Dive Logs ---
 df = st.session_state.divelog
@@ -104,11 +125,15 @@ if df.empty:
     st.stop()
 
 st.subheader("📖 Logged Dives")
+
 del_col, log_col = st.columns([1, 5])
 with del_col:
     delete_index = st.number_input("Index to Delete", min_value=0, max_value=len(df)-1 if len(df) > 0 else 0, step=1)
     if st.button("❌ Delete Dive"):
         st.session_state.divelog = st.session_state.divelog.drop(delete_index).reset_index(drop=True)
+        worksheet.clear()
+        worksheet.append_row(list(st.session_state.divelog.columns))
+        worksheet.append_rows(st.session_state.divelog.drop(columns=["Image"]).values.tolist())
         st.success(f"Deleted dive at index {delete_index}")
 
 with log_col:
