@@ -11,16 +11,6 @@ from fpdf import FPDF
 
 st.set_page_config(page_title="Dive Log App", layout="wide")
 
-# Hide Streamlit toolbar
-hide_streamlit_style = """
-    <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .st-emotion-cache-19rxjzo {visibility: hidden;} /* Top right toolbar */
-    </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 
 st.title("🌊 Dive Log App")
