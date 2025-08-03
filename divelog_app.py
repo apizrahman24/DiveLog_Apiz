@@ -94,10 +94,19 @@ if df.empty:
     st.stop()
 
 st.subheader("📖 Logged Dives")
-st.dataframe(df.drop(columns=["Image"]))
+
+del_col, log_col = st.columns([1, 5])
+with del_col:
+    delete_index = st.number_input("Index to Delete", min_value=0, max_value=len(df)-1 if len(df) > 0 else 0, step=1)
+    if st.button("❌ Delete Dive"):
+        st.session_state.divelog = st.session_state.divelog.drop(delete_index).reset_index(drop=True)
+        st.success(f"Deleted dive at index {delete_index}")
+
+with log_col:
+    st.dataframe(df.drop(columns=["Image"]))
 
 # --- Profile Summary ---
-st.subheader("📊 Profile Summary")
+st.subheader("📈 Profile Summary")
 total_dives = len(df)
 total_duration = df["Duration (min)"].sum()
 avg_depth = df["Depth (m)"].mean()
