@@ -4,4 +4,5 @@ pandas
 plotly
 Pillow
 geopy
+fpdf
 
