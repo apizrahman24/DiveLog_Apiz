@@ -1,44 +1,23 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datetime import datetime
-from io import BytesIO
-from PIL import Image
-import base64
-from geopy.geocoders import Nominatim
-
-st.set_page_config(page_title="Dive Log App", layout="wide")
-st.title("🌊 Dive Log App")
-st.write("Track your scuba diving adventures with images, stats, and dive computer data.")
-
-# --- Initialize session state ---
-if "divelog" not in st.session_state:
-    st.session_state.divelog = pd.DataFrame(
-        columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
-                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
-                 "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
-    )
-
-geolocator = Nominatim(user_agent="divelog-app")
-
-# --- Dive Log Entry Form ---
-st.sidebar.header("📝 Log a New Dive")
-with st.sidebar.form("dive_form"):
-    date = st.date_input("Dive Date", value=datetime.today())
-    location = st.text_input("Location")
-
-    # Auto-geocoding
+# Auto-geocoding
     lat, lon = 0.0, 0.0
+    location_valid = False
+    location_msg = ""
     if location:
         try:
             geo = geolocator.geocode(location)
             if geo:
                 lat, lon = geo.latitude, geo.longitude
-                st.sidebar.success(f"📍 Found: {geo.latitude:.4f}, {geo.longitude:.4f}")
+                location_valid = True
+                location_msg = f"📍 Found: {geo.latitude:.4f}, {geo.longitude:.4f}"
             else:
-                st.sidebar.warning("No coordinates found.")
+                location_msg = "⚠️ Location not found. Please double-check."
         except:
-            st.sidebar.error("Failed to connect to geocoding service.")
+            location_msg = "❌ Failed to connect to geocoding service."
+
+    if location:
+        st.sidebar.info(location_msg)
+        if not location_valid:
+            st.stop()
 
     lat = st.number_input("Latitude", value=lat, format="%.6f")
     lon = st.number_input("Longitude", value=lon, format="%.6f")
