@@ -15,7 +15,8 @@ st.write("Track your scuba diving adventures with images, stats, and dive comput
 if "divelog" not in st.session_state:
     st.session_state.divelog = pd.DataFrame(
         columns=["Date", "Location", "Latitude", "Longitude", "Depth (m)", "Duration (min)",
-                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type", "Image"]
+                 "Activity", "Buddy", "Notes", "Equipment", "Tank Type",
+                 "Air Before (bar)", "Air After (bar)", "Air Used (bar)", "Image"]
     )
 
 geolocator = Nominatim(user_agent="divelog-app")
@@ -25,20 +26,22 @@ st.sidebar.header("📝 Log a New Dive")
 with st.sidebar.form("dive_form"):
     date = st.date_input("Dive Date", value=datetime.today())
     location = st.text_input("Location")
-    lat = st.number_input("Latitude", format="%.6f")
-    lon = st.number_input("Longitude", format="%.6f")
-    geocode_btn = st.form_submit_button("📍 Auto-fill Coordinates from Location")
-    if geocode_btn and location:
+
+    # Auto-geocoding
+    lat, lon = 0.0, 0.0
+    if location:
         try:
             geo = geolocator.geocode(location)
             if geo:
-                lat = geo.latitude
-                lon = geo.longitude
-                st.success("Coordinates filled from location name.")
+                lat, lon = geo.latitude, geo.longitude
+                st.sidebar.success(f"📍 Found: {geo.latitude:.4f}, {geo.longitude:.4f}")
             else:
-                st.warning("Location not found.")
+                st.sidebar.warning("No coordinates found.")
         except:
-            st.error("Geocoding failed. Please check your internet connection or try again.")
+            st.sidebar.error("Failed to connect to geocoding service.")
+
+    lat = st.number_input("Latitude", value=lat, format="%.6f")
+    lon = st.number_input("Longitude", value=lon, format="%.6f")
 
     depth = st.number_input("Max Depth (m)", min_value=0.0, format="%.1f")
     duration = st.number_input("Duration (min)", min_value=0)
@@ -47,6 +50,11 @@ with st.sidebar.form("dive_form"):
     notes = st.text_area("Notes")
     equipment = st.text_input("Equipment Used")
     tank = st.selectbox("Tank Type", ["Air", "Nitrox", "Trimix", "Other"])
+
+    air_before = st.number_input("Tank Pressure Before Dive (bar)", min_value=0, value=200)
+    air_after = st.number_input("Tank Pressure After Dive (bar)", min_value=0, value=50)
+    air_used = max(0, air_before - air_after)
+
     image_file = st.file_uploader("Upload Dive Site Image", type=["jpg", "jpeg", "png"])
     submit = st.form_submit_button("Add Dive")
 
@@ -68,6 +76,9 @@ with st.sidebar.form("dive_form"):
             "Notes": notes,
             "Equipment": equipment,
             "Tank Type": tank,
+            "Air Before (bar)": air_before,
+            "Air After (bar)": air_after,
+            "Air Used (bar)": air_used,
             "Image": img_data
         }
         st.session_state.divelog = pd.concat(
@@ -86,7 +97,7 @@ st.subheader("📖 Logged Dives")
 st.dataframe(df.drop(columns=["Image"]))
 
 # --- Profile Summary ---
-st.subheader("📈 Profile Summary")
+st.subheader("📊 Profile Summary")
 total_dives = len(df)
 total_duration = df["Duration (min)"].sum()
 avg_depth = df["Depth (m)"].mean()
